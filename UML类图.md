@@ -5,7 +5,7 @@
 - UML——Unified modeling language UML (统一建模语言)，是一种用于软件系统分析和设计的语言工具，它用于帮助软件开发人员进行思考和记录思路的结果
 - UML 本身是一套符号的规定，就像数学符号和化学符号一样，这些符号用于描述软件模型中的各个元素和他们之间的关系，比如类、接口、实现、泛化、依赖、组合、聚合等，如下图:
 
-![image-20220124155328980](.\image\image-20220124155328980.png)
+![image-20220124155328980](https://cdn.jsdelivr.net/gh/senluoye/BadGallery@main/image/202201241655517.png)
 
 #### UML图
 

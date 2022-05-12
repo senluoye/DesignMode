@@ -1,4 +1,4 @@
-## 7.4 自定义 SpringIoC
+## 自定义 SpringIoC
 
 现要对下面的配置文件进行解析，并自定义 Spring 框架的 IOC 对涉及到的对象进行管理。
 
@@ -12,9 +12,9 @@
 </beans>
 ```
 
-### 7.4.1 定义 bean 相关的 pojo 类
+### 1.1 定义 bean 相关的 pojo 类
 
-#### 7.4.1.1 PropertyValue 类
+#### 1.1.1 PropertyValue 类
 
 用于封装 bean 的属性，在上面的配置文件中就是封装 bean 标签的子标签 property 标签的属性。
 
@@ -29,7 +29,7 @@ public class PropertyValue {
 }
 ```
 
-#### 7.4.1.2 MutablePropertyValues 类
+#### 1.1.2 MutablePropertyValues 类
 
 一个 bean 标签可以有多个 property 子标签，所以再定义一个 MutablePropertyValues 类，用来存储并管理多个 PropertyValue 对象。
 
@@ -127,7 +127,7 @@ public class MutablePropertyValues implements Iterable<PropertyValue> {
 
 > 继承 Iterable 是为了使用迭代器
 
-#### 7.4.1.3 BeanDefinition 类
+#### 1.1.3 BeanDefinition 类
 
 BeanDefinition 类用来封装 bean 信息的，主要包含 id（即 bean 对象的名称）、class（需要交由 spring 管理的类的全类名）及子标签 property 数据。
 
@@ -144,9 +144,9 @@ public class BeanDefinition {
 }
 ```
 
-### 7.4.2 定义注册表相关类
+### 1.2 定义注册表相关类
 
-#### 7.4.2.1 BeanDefinitionRegistry 接口
+#### 1.2.1 BeanDefinitionRegistry 接口
 
 BeanDefinitionRegistry 接口定义了注册表的相关操作，定义如下功能：
 
@@ -202,7 +202,7 @@ public interface BeanDefinitionRegistry {
 }
 ```
 
-#### 7.4.2.2 SimpleBeanDefinitionRegistry 类
+#### 1.2.2 SimpleBeanDefinitionRegistry 类
 
 该类实现了 BeanDefinitionRegistry 接口，定义了 Map 集合作为注册表容器。
 
@@ -246,9 +246,11 @@ public class SimpleBeanDefinitionRegistry implements BeanDefinitionRegistry {
 }
 ```
 
-### 7.4.3 定义解析器相关类
+### 1.3 定义解析器相关类
 
-#### 7.4.3.1 BeanDefinitionReader 接口
+这里只模拟实现针对 xml 格式的解析器相关类。
+
+#### 1.3.1 BeanDefinitionReader 接口
 
 BeanDefinitionReader 是用来解析配置文件并在注册表中注册 bean 的信息。定义了两个规范：
 
@@ -265,14 +267,24 @@ public interface BeanDefinitionReader {
 
     /**
      * 加载配置文件并在注册表中进行注册
-     * @param configLocation 配置文件
+     * @param configLocation 配置文件路径
      * @throws Exception
      */
     void loadBeanDefinitions(String configLocation) throws Exception;
 }
 ```
 
-#### 7.4.3.2 XmlBeanDefinitionReader 类
+#### 1.3.2 XmlBeanDefinitionReader 类
+
+首先需要引入 dom4j 相关依赖：
+
+```xml
+<dependency>
+    <groupId>dom4j</groupId>
+    <artifactId>dom4j</artifactId>
+    <version>1.6.1</version>
+</dependency>
+```
 
 XmlBeanDefinitionReader 类是专门用来解析 xml 配置文件的。该类实现 BeanDefinitionReader 接口并实现接口中的两个功能。
 
@@ -302,7 +314,6 @@ public class XmlBeanDefinitionReader implements BeanDefinitionReader {
     }
 
     private void parseBean(Element rootElement) {
-
         List<Element> elements = rootElement.elements();
         for (Element element : elements) {
             String id = element.attributeValue("id");
@@ -321,31 +332,44 @@ public class XmlBeanDefinitionReader implements BeanDefinitionReader {
             }
             beanDefinition.setPropertyValues(mutablePropertyValues);
 
-            registry.registerBeanDefinition(id,beanDefinition);
+            registry.registerBeanDefinition(id, beanDefinition);
         }
     }
 }
 ```
 
-### 7.4.4 IOC 容器相关类
+### 1.4 IOC 容器相关类
 
-#### 7.4.4.1 BeanFactory 接口
+#### 1.4.1 BeanFactory 接口
 
 在该接口中定义 IOC 容器的统一规范即获取 bean 对象。
 
 ```java
 public interface BeanFactory {
-    //根据bean对象的名称获取bean对象
+
+    /**
+     * 根据名称获取Bean对象
+     * @param name Bean名称
+     * @return Object
+     * @throws Exception 抛出错误
+     */
     Object getBean(String name) throws Exception;
 
-    //根据bean对象的名称获取bean对象，并进行类型转换
+    /**
+     * 根据Bean的名称取对应的Bean对象，并进行类型转换
+     * @param name Bean的名称
+     * @param clazz Class对象
+     * @param <T> 声明这是一个泛型方法
+     * @return T
+     * @throws Exception 抛出错误
+     */
     <T> T getBean(String name, Class<? extends T> clazz) throws Exception;
 }
 ```
 
-#### 7.4.4.2 ApplicationContext 接口
+#### 1.4.2 ApplicationContext 接口
 
-该接口的所以的子实现类对 bean 对象的创建都是非延时的，所以在该接口中定义 `refresh()` 方法，该方法主要完成以下两个功能：
+该接口的所有的子实现类对 bean 对象的创建都是非延时的，所以在该接口中定义 `refresh()` 方法，该方法主要完成以下两个功能：
 
 - 加载配置文件。
 - 根据注册表中的 BeanDefinition 对象封装的数据进行 bean 对象的创建。
@@ -357,41 +381,52 @@ public interface ApplicationContext extends BeanFactory {
 }
 ```
 
-#### 7.4.4.3 AbstractApplicationContext 类
+#### 1.4.3 AbstractApplicationContext 类
 
 - 作为 ApplicationContext 接口的子类，所以该类也是非延时加载，所以需要在该类中定义一个 Map 集合，作为 bean 对象存储的容器。
 
 - 声明 BeanDefinitionReader 类型的变量，用来进行 xml 配置文件的解析，符合单一职责原则。
-
   BeanDefinitionReader 类型的对象创建交由子类实现，因为只有子类明确到底创建 BeanDefinitionReader 哪儿个子实现类对象。
 
 ```java
 public abstract class AbstractApplicationContext implements ApplicationContext {
-
+    /**
+     * 声明解析器变量
+     */
     protected BeanDefinitionReader beanDefinitionReader;
-    //用来存储bean对象的容器   key存储的是bean的id值，value存储的是bean对象
+
+    /**
+     * 定义用于存储bean对象的map容器
+     */
     protected Map<String, Object> singletonObjects = new HashMap<String, Object>();
 
-    //存储配置文件的路径
+    /**
+     * 声明配置文件路径的变量
+     */
     protected String configLocation;
 
-    public void refresh() throws IllegalStateException, Exception {
-
-        //加载BeanDefinition
+    @Override
+    public void refresh() throws Exception {
+        //加载BeanDefinition对象
         beanDefinitionReader.loadBeanDefinitions(configLocation);
 
         //初始化bean
-        finishBeanInitialization();
+        this.finishBeanInitialization();
     }
 
-    //bean的初始化
+    /**
+     * bean的初始化
+     * @throws Exception 抛出错误
+     */
     private void finishBeanInitialization() throws Exception {
+        //获取注册表对象
         BeanDefinitionRegistry registry = beanDefinitionReader.getRegistry();
-        String[] beanNames = registry.getBeanDefinitionNames();
 
+        //获取BeanDefinition对象
+        String[] beanNames = registry.getBeanDefinitionNames();
         for (String beanName : beanNames) {
-            BeanDefinition beanDefinition = registry.getBeanDefinition(beanName);
-            getBean(beanName);
+            //进行bean的初始化
+            this.getBean(beanName);
         }
     }
 }
@@ -399,7 +434,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
 
 > 注意：该类 finishBeanInitialization()方法中调用 getBean()方法使用到了模板方法模式。
 
-#### 7.4.4.4 ClassPathXmlApplicationContext 类
+#### 1.4.4 ClassPathXmlApplicationContext 类
 
 该类主要是加载类路径下的配置文件，并进行 bean 对象的创建，主要完成以下功能：
 
@@ -408,78 +443,138 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
 - 重写父接口中的 getBean()方法，并实现依赖注入操作。
 
 ```java
-public class ClassPathXmlApplicationContext extends AbstractApplicationContext{
-
+public class ClassPathXmlApplicationContext extends AbstractApplicationContext {
     public ClassPathXmlApplicationContext(String configLocation) {
         this.configLocation = configLocation;
-        //构建XmlBeanDefinitionReader对象
+        //构建解析器对象
         beanDefinitionReader = new XmlBeanDefinitionReader();
-        try {
+        try{
             this.refresh();
-        } catch (Exception e) {
-        }
+        } catch (Exception ignored) {}
     }
 
-    //根据bean的id属性值获取bean对象
+    /**
+     * 根据bean对象的名称获取bean对象
+     * @param name Bean名称
+     * @return
+     * @throws Exception
+     */
     @Override
     public Object getBean(String name) throws Exception {
-
-        //return singletonObjects.get(name);
+        //判断对象容器中是否包含指定名称的bean对象，如果包含，直接返回即可，如果不包含，需要自行创建
         Object obj = singletonObjects.get(name);
-        if(obj != null) {
+        if (obj != null) {
             return obj;
         }
 
+        //获取BeanDefinition对象
         BeanDefinitionRegistry registry = beanDefinitionReader.getRegistry();
         BeanDefinition beanDefinition = registry.getBeanDefinition(name);
-        if(beanDefinition == null) {
-            return null;
-        }
+
+        //获取bean信息中的className
         String className = beanDefinition.getClassName();
+
+        //通过反射创建对象
         Class<?> clazz = Class.forName(className);
-        Object beanObj = clazz.newInstance();
+        Object beanObj = clazz.getDeclaredConstructor().newInstance();
+
+        //进行依赖注入操作（bean可能依赖于其他bean）
         MutablePropertyValues propertyValues = beanDefinition.getPropertyValues();
         for (PropertyValue propertyValue : propertyValues) {
+            //获取name属性值
             String propertyName = propertyValue.getName();
+
+            //获取value属性
             String value = propertyValue.getValue();
+
+            //获取ref属性
             String ref = propertyValue.getRef();
             if(ref != null && !"".equals(ref)) {
-
+                //获取依赖的bean对象
                 Object bean = getBean(ref);
-                String methodName = StringUtils.getSetterMethodNameByFieldName(propertyName);
+
+                //拼接方法名
+                String methodName = StringUtils.getSetterMethodByFieldName(propertyName);
+
+                //获取所有的方法对象
                 Method[] methods = clazz.getMethods();
                 for (Method method : methods) {
-                    if(method.getName().equals(methodName)) {
+                    if (methodName.equals(method.getName())) {
+                        //执行该setter方法
                         method.invoke(beanObj,bean);
                     }
                 }
             }
 
             if(value != null && !"".equals(value)) {
-                String methodName = StringUtils.getSetterMethodNameByFieldName(propertyName);
+                //拼接方法名
+                String methodName = StringUtils.getSetterMethodByFieldName(propertyName);
+
+                //获取method对象
                 Method method = clazz.getMethod(methodName, String.class);
-                method.invoke(beanObj,value);
+                method.invoke(beanObj, value);
             }
         }
-        singletonObjects.put(name,beanObj);
+
+        //在返回beanObj对象之前，将该对象存储到map容器中
+        singletonObjects.put(name, beanObj);
         return beanObj;
     }
 
     @Override
     public <T> T getBean(String name, Class<? extends T> clazz) throws Exception {
-
         Object bean = getBean(name);
-        if(bean != null) {
-            return clazz.cast(bean);
+        if(bean == null) {
+            return null;
         }
-        return null;
+        return clazz.cast(bean);
     }
 }
 ```
 
-### 7.4.5 自定义 Spring IOC 总结
+#### 1.4.5 自定义工具类
 
-#### 7.4.5.1 使用到的设计模式
+主要是存储 ClassPathXmlApplicationContext 类中 getBean 方法用到的拼接方法名的工具方法
+
+```java
+public class StringUtils {
+    private StringUtils() {
+    }
+
+    /**
+     * userDao ==> setUserDao
+     * @param fieldName
+     * @return
+     */
+    public static String getSetterMethodByFieldName(String fieldName) {
+        return "set" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+    }
+}
+```
+
+### 1.5 测试
+
+首先通过 maven install 命令，将上面的代码打包。
+
+![20220512202821](https://raw.githubusercontent.com/senluoye/BadGallery/master/image/20220512202821.png)
+
+回到之前写的 spring_demo，更换 pom 文件的依赖：
+
+```xml
+<dependency>
+    <groupId>com.itheima</groupId>
+    <artifactId>itheima_spring</artifactId>
+    <version>1.0-SNAPSHOT</version>
+</dependency>
+```
+
+运行 Controller 的 main 方法，可以看到，已经成功运行了：
+
+![20220512202936](https://raw.githubusercontent.com/senluoye/BadGallery/master/image/20220512202936.png)
+
+### 1.6 自定义 Spring IOC 总结
+
+#### 1.6.1 使用到的设计模式
 
 - 工厂模式。这个使用工厂模式 + 配置文件的方式。
 - 单例模式。Spring IOC 管理的 bean 对象都是单例的，此处的单例不是通过构造器进行单例的控制的，而是 spring 框架对每一个 bean 只创建了一个对象。
@@ -488,9 +583,9 @@ public class ClassPathXmlApplicationContext extends AbstractApplicationContext{
 
 spring 框架其实使用到了很多设计模式，如 AOP 使用到了代理模式，选择 JDK 代理或者 CGLIB 代理使用到了策略模式，还有适配器模式，装饰者模式，观察者模式等。
 
-#### 7.4.5.2 符合大部分设计原则
+#### 1.6.2 符合大部分设计原则
 
-#### 7.4.5.3 整个设计和 Spring 的设计还是有一定的出入
+#### 1.6.3 整个设计和 Spring 的设计还是有一定的出入
 
 spring 框架底层是很复杂的，进行了很深入的封装，并对外提供了很好的扩展性。而我们自定义 SpringIOC 有以下几个目的：
 

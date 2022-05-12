@@ -1,4 +1,4 @@
-## 7.4 自定义 SpringIOC
+## 7.4 自定义 SpringIoC
 
 现要对下面的配置文件进行解析，并自定义 Spring 框架的 IOC 对涉及到的对象进行管理。
 
@@ -16,47 +16,16 @@
 
 #### 7.4.1.1 PropertyValue 类
 
-用于封装 bean 的属性，体现到上面的配置文件就是封装 bean 标签的子标签 property 标签数据。
+用于封装 bean 的属性，在上面的配置文件中就是封装 bean 标签的子标签 property 标签的属性。
 
 ```java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class PropertyValue {
-
   private String name;
   private String ref;
   private String value;
-
-  public PropertyValue() {
-  }
-
-  public PropertyValue(String name, String ref,String value) {
-    this.name = name;
-    this.ref = ref;
-    this.value = value;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getRef() {
-    return ref;
-  }
-
-  public void setRef(String ref) {
-    this.ref = ref;
-  }
-
-  public String getValue() {
-    return value;
-  }
-
-  public void setValue(String value) {
-    this.value = value;
-  }
 }
 ```
 
@@ -67,6 +36,9 @@ public class PropertyValue {
 ```java
 public class MutablePropertyValues implements Iterable<PropertyValue> {
 
+    /**
+     * 定义list集合对象，用来存储PropertyValue对象
+     */
     private final List<PropertyValue> propertyValueList;
 
     public MutablePropertyValues() {
@@ -74,86 +46,100 @@ public class MutablePropertyValues implements Iterable<PropertyValue> {
     }
 
     public MutablePropertyValues(List<PropertyValue> propertyValueList) {
-        this.propertyValueList = (propertyValueList != null ? propertyValueList : new ArrayList<PropertyValue>());
+        if(propertyValueList == null) {
+            this.propertyValueList = new ArrayList<PropertyValue>();
+        } else {
+            this.propertyValueList = propertyValueList;
+        }
     }
 
+    /**
+     * 获取所有的PropertyValue对象，返回以数组的形式
+     * @return PropertyValue[]
+     */
     public PropertyValue[] getPropertyValues() {
-        return this.propertyValueList.toArray(new PropertyValue[0]);
+        //将集合转换为数组并返回
+        return propertyValueList.toArray(new PropertyValue[0]);
     }
 
+    /**
+     * 根据name属性值获取PropertyValue对象
+     * @param propertyName 属性名称
+     * @return PropertyValue
+     */
     public PropertyValue getPropertyValue(String propertyName) {
-        for (PropertyValue pv : this.propertyValueList) {
-            if (pv.getName().equals(propertyName)) {
-                return pv;
+        //遍历集合对象
+        for (PropertyValue propertyValue : propertyValueList) {
+            if (propertyValue.getName().equals(propertyName)) {
+                return propertyValue;
             }
         }
         return null;
     }
 
-    @Override
-    public Iterator<PropertyValue> iterator() {
-        return propertyValueList.iterator();
-    }
-
+    /**
+     * 判断集合是否为空
+     * @return boolean
+     */
     public boolean isEmpty() {
-        return this.propertyValueList.isEmpty();
+        return propertyValueList.isEmpty();
     }
 
+    /**
+     * 添加PropertyValue对象
+     * @param pv PropertyValue对象
+     * @return MutablePropertyValues
+     */
     public MutablePropertyValues addPropertyValue(PropertyValue pv) {
-        for (int i = 0; i < this.propertyValueList.size(); i++) {
-            PropertyValue currentPv = this.propertyValueList.get(i);
-            if (currentPv.getName().equals(pv.getName())) {
-                this.propertyValueList.set(i, new PropertyValue(pv.getName(),pv.getRef(), pv.getValue()));
+        //判断集合中存储的PropertyValue对象是否和传递进行的重复了，如果重复了，进行覆盖
+        for (int i = 0; i < propertyValueList.size(); i++) {
+            //获取集合中每一个PropertyValue对象
+            PropertyValue currentPv = propertyValueList.get(i);
+            if(currentPv.getName().equals(pv.getName())) {
+                propertyValueList.set(i, pv);
+                //返回this目的就是实现链式编程
                 return this;
             }
         }
         this.propertyValueList.add(pv);
+        //返回this目的就是实现链式编程
         return this;
     }
 
+    /**
+     * 判断是否有指定name属性值的对象
+     * @param propertyName property名称
+     * @return boolean
+     */
     public boolean contains(String propertyName) {
         return getPropertyValue(propertyName) != null;
     }
+
+    /**
+     * 获取迭代器对象
+     * @return Iterator
+     */
+    public Iterator<PropertyValue> iterator() {
+        return propertyValueList.iterator();
+    }
 }
 ```
+
+> 继承 Iterable 是为了使用迭代器
 
 #### 7.4.1.3 BeanDefinition 类
 
 BeanDefinition 类用来封装 bean 信息的，主要包含 id（即 bean 对象的名称）、class（需要交由 spring 管理的类的全类名）及子标签 property 数据。
 
 ```java
+@Data
 public class BeanDefinition {
     private String id;
     private String className;
-
     private MutablePropertyValues propertyValues;
 
     public BeanDefinition() {
         propertyValues = new MutablePropertyValues();
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
-    }
-
-    public void setPropertyValues(MutablePropertyValues propertyValues) {
-        this.propertyValues = propertyValues;
-    }
-
-    public MutablePropertyValues getPropertyValues() {
-        return propertyValues;
     }
 }
 ```
@@ -173,20 +159,45 @@ BeanDefinitionRegistry 接口定义了注册表的相关操作，定义如下功
 
 ```java
 public interface BeanDefinitionRegistry {
-
-    //注册BeanDefinition对象到注册表中
+    /**
+     * 注册BeanDefinition对象到注册表中
+     * @param beanName Bean的名称
+     * @param beanDefinition BeanDefinition对象
+     */
     void registerBeanDefinition(String beanName, BeanDefinition beanDefinition);
 
-    //从注册表中删除指定名称的BeanDefinition对象
+    /**
+     * 从注册表中删除指定名称的BeanDefinition对象
+     * @param beanName Bean的名称
+     * @throws Exception 抛出错误
+     */
     void removeBeanDefinition(String beanName) throws Exception;
 
-    //根据名称从注册表中获取BeanDefinition对象
+    /**
+     * 根据名称从注册表中获取BeanDefinition对象
+     * @param beanName Bean的名称
+     * @return BeanDefinition
+     * @throws Exception 抛出错误
+     */
     BeanDefinition getBeanDefinition(String beanName) throws Exception;
 
+    /**
+     * 判断注册表中是否包含执行名称的BeanDefinition对象
+     * @param beanName Bean的名称
+     * @return boolean
+     */
     boolean containsBeanDefinition(String beanName);
 
+    /**
+     * 获取注册表中BeanDefinition对象的个数
+     * @return int
+     */
     int getBeanDefinitionCount();
 
+    /**
+     * 获取注册表中所有BeanDefinition的名称
+     * @return String
+     */
     String[] getBeanDefinitionNames();
 }
 ```
@@ -198,7 +209,10 @@ public interface BeanDefinitionRegistry {
 ```java
 public class SimpleBeanDefinitionRegistry implements BeanDefinitionRegistry {
 
-    private Map<String, BeanDefinition> beanDefinitionMap = new HashMap<String, BeanDefinition>();
+    /**
+     * 定义一个容器，用来存储BeanDefinition对象
+     */
+    private final Map<String, BeanDefinition> beanDefinitionMap = new HashMap<>();
 
     @Override
     public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) {
@@ -227,7 +241,7 @@ public class SimpleBeanDefinitionRegistry implements BeanDefinitionRegistry {
 
     @Override
     public String[] getBeanDefinitionNames() {
-        return beanDefinitionMap.keySet().toArray(new String[1]);
+        return beanDefinitionMap.keySet().toArray(new String[0]);
     }
 }
 ```
@@ -243,11 +257,17 @@ BeanDefinitionReader 是用来解析配置文件并在注册表中注册 bean �
 
 ```java
 public interface BeanDefinitionReader {
-
-    //获取注册表对象
+    /**
+     * 获取注册表对象
+     * @return BeanDefinitionRegistry
+     */
     BeanDefinitionRegistry getRegistry();
 
-    //加载配置文件并在注册表中进行注册
+    /**
+     * 加载配置文件并在注册表中进行注册
+     * @param configLocation 配置文件
+     * @throws Exception
+     */
     void loadBeanDefinitions(String configLocation) throws Exception;
 }
 ```
@@ -315,9 +335,10 @@ public class XmlBeanDefinitionReader implements BeanDefinitionReader {
 
 ```java
 public interface BeanFactory {
-	//根据bean对象的名称获取bean对象
+    //根据bean对象的名称获取bean对象
     Object getBean(String name) throws Exception;
-	//根据bean对象的名称获取bean对象，并进行类型转换
+
+    //根据bean对象的名称获取bean对象，并进行类型转换
     <T> T getBean(String name, Class<? extends T> clazz) throws Exception;
 }
 ```
@@ -331,7 +352,7 @@ public interface BeanFactory {
 
 ```java
 public interface ApplicationContext extends BeanFactory {
-	//进行配置文件加载并进行对象创建
+    //进行配置文件加载并进行对象创建
     void refresh() throws IllegalStateException, Exception;
 }
 ```
